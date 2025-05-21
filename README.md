@@ -53,7 +53,3 @@ Use the default dataset path or specify your dataset path.
 python train.py --dataset_path <path to dataset>
 ```
 Testing results wil be saved in ./logs folder and model checkpoints will be saved in ./output folder.
-
-
-## Acknowledgment
-Thanks to the [WRF-GS](https://github.com/wenchaozheng/WRF-GS) authors and their open-sourced code.

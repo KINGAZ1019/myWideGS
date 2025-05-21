@@ -30,6 +30,7 @@ The dataset structure of a scene in the path location should be as follows:
 
 We provide multi-frequency dataset of 6 different scenes [here](https://xxx).
 
+Note: The current release includes sample data for two scenes. The full dataset for all six scenes will be open-sourced upon acceptance of this paper.
 
 ## Setup
 Create and activate conda environment

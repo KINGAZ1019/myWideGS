@@ -28,15 +28,13 @@ The dataset structure of a scene in the path location should be as follows:
 |---tx_pos.csv
 ```
 
-We provide multi-frequency dataset of 6 different scenes [here](https://xxx).
-
-Note: The current release includes sample data for two scenes. The full dataset for all six scenes will be open-sourced upon acceptance of this paper.
+Note: The current release includes part of sample data of 2 scenes (```./data/example1``` and ```./data/example2```). The full dataset of all 6 scenes will be open-sourced upon acceptance of this paper.
 
 ## Setup
 Create and activate conda environment
 ```python
 conda env create --file environment.yml
-conda activate widebandGS
+conda activate widegs
 ```
 Install submodules
 ```python
@@ -48,8 +46,13 @@ pip install ./simple-knn
 
 
 ## Training & Testing
-Use the default dataset path or specify your dataset path.
+Use the default dataset path.
+```python
+python train.py
+```
+Or specify a dataset path.
 ```python
 python train.py --dataset_path <path to dataset>
 ```
-Testing results wil be saved in ./logs folder and model checkpoints will be saved in ./output folder.
+The model will be evaluated at epochs of the ```--test_iterations``` argument.
+The testing results will be saved in ```./logs``` folder and the model checkpoints will be saved in ```./output``` folder.

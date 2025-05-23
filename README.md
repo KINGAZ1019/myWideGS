@@ -56,3 +56,9 @@ python train.py --dataset_path <path to dataset>
 ```
 The model will be evaluated at epochs of the ```--test_iterations``` argument.
 The testing results will be saved in ```./logs``` folder and the model checkpoints will be saved in ```./output``` folder.
+
+## Additional Included File Descriptions:
+Directory Structure Descriptions:
+arguments/: Contains hyperparameters configured for model training.
+data/: Provides sample datasets for training purposes.
+scene/: Includes Gaussian model implementations and scene-specific code modules.

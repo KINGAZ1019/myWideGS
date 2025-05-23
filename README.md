@@ -59,6 +59,6 @@ The testing results will be saved in ```./logs``` folder and the model checkpoin
 
 ## Additional Included File Descriptions:
 Directory Structure Descriptions:
-arguments/: Contains hyperparameters configured for model training.
-data/: Provides sample datasets for training purposes.
-scene/: Includes Gaussian model implementations and scene-specific code modules.
+```./arguments``` : Contains hyperparameters configured for model training.
+```./data``` : Provides sample datasets for training purposes.
+```./scene``` :  Includes Gaussian model implementations and scene-specific code modules.

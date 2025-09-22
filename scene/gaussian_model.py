@@ -636,7 +636,7 @@ def get_embedder(multires, is_embeded=True, input_dims=3):
     
 class EMFeatureNetwork(nn.Module):
 
-    def __init__(self, D=8, W=128, skips=[4],
+    def __init__(self, D=8, W=128, skips=[1,3,5,7],
                  input_dims={'pts':3, 'view':3, 'tx':3, 'freq':1},
                  multires = {'pts':10, 'view':10, 'tx':10, 'freq':10},
                  is_embeded={'pts':True, 'view':True, 'tx':True, 'freq':True},

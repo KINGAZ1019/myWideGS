@@ -651,6 +651,9 @@ class EMFeatureNetwork(nn.Module):
         self.embed_tx_fn, input_tx_dim = get_embedder(multires['tx'], is_embeded['tx'], input_dims['tx'])
         self.embed_freq_fn, input_freq_dim = get_embedder(multires['freq'], is_embeded['freq'], input_dims['freq'])
 
+        # 频率调制层
+        self.freq_modulator = nn.Sequential(nn.Linear(input_freq_dim, self.input_pts_dim), nn.Sigmoid())
+
         ## attenuation network
         self.attenuation_linears = nn.ModuleList(
             [nn.Linear(input_pts_dim + input_freq_dim, W)] +
@@ -683,8 +686,10 @@ class EMFeatureNetwork(nn.Module):
         tx = tx.view(-1, list(tx.shape)[-1])
         freq = freq.view(-1, list(freq.shape)[-1])
 
-        x = pts
-        x = torch.cat([x, freq], -1)
+        # 使用频率调制替换拼接
+        freq_modulation_signal = self.freq_modulator(freq)
+        x = pts * freq_modulation_signal  # 元素级相乘
+        
         for i, layer in enumerate(self.attenuation_linears):
             x = F.relu(layer(x))
             if i in self.skips:

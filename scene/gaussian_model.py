@@ -640,15 +640,10 @@ class EMFeatureNetwork(nn.Module):
                  input_dims={'pts':3, 'view':3, 'tx':3, 'freq':1},
                  multires = {'pts':10, 'view':10, 'tx':10, 'freq':10},
                  is_embeded={'pts':True, 'view':True, 'tx':True, 'freq':True},
-                 attn_output_dims=2, sig_output_dims=2,
-                 num_heads=4, # <--- 新增参数：注意力头数量
-                 use_self_attention=False, # <--- 新增参数：是否使用自注意力
-                 ):
+                 attn_output_dims=2, sig_output_dims=2):
 
         super().__init__()
         self.skips = skips
-        self.D = D, self.W = W
-        self.use_self_attention = use_self_attention
         
         # set positional encoding function
         self.embed_pts_fn, self.input_pts_dim = get_embedder(multires['pts'], is_embeded['pts'], input_dims['pts'])
@@ -661,22 +656,14 @@ class EMFeatureNetwork(nn.Module):
 
         ## attenuation network
         self.attenuation_linears = nn.ModuleList()
+        
+        # MLP 的第 0 层：输入是经过频率调制后的 pts (维度 self.input_pts_dim)，输出是 W
         self.attenuation_linears.append(nn.Linear(self.input_pts_dim, W)) 
-        for i in range(D - 1): 
+        
+        # MLP 的后续 D-1 层：每一层的输入和输出维度都是 W。
+        # 残差连接是元素级相加，不改变线性层的输入维度。
+        for i in range(D - 1): # i 从 0 到 D-2，代表要构建的层的索引 (即 MLP 的第 1 到 D-1 层)
             self.attenuation_linears.append(nn.Linear(W, W)) # 所有后续线性层都是 W->W
-
-        # <--- 自注意力相关的模块
-        if self.use_self_attention:
-            # MultiheadAttention 期望输入特征的维度是 embed_dim
-            # 我们假设在 MLP 运行到一半后插入注意力层，此时特征维度是 W
-            self.self_attn = nn.MultiheadAttention(embed_dim=W, num_heads=num_heads, batch_first=True)
-            self.self_attn_norm = nn.LayerNorm(W) # 用于注意力后的归一化
-            self.self_attn_ffn = nn.Sequential( # 注意力后的前馈网络
-                nn.Linear(W, W * 2),
-                nn.ReLU(inplace=True),
-                nn.Linear(W * 2, W)
-            )
-            self.self_attn_ffn_norm = nn.LayerNorm(W) # FFN 后的归一化
 
         ## signal network (这部分保持不变)
         self.signal_linears = nn.ModuleList(
@@ -710,43 +697,17 @@ class EMFeatureNetwork(nn.Module):
         x = embedded_pts_flat * freq_modulation_signal  # 元素级相乘
         
         # attenuation network 前向传播
-        # 注意：这里的循环是针对 self.attenuation_linears 中的每个线性层; layer_input 变量用来保存当前线性层的输入，以便做残差连接
+        # 注意：这里的循环是针对 self.attenuation_linears 中的每个线性层
+        # layer_input 变量用来保存当前线性层的输入，以便做残差连接
         for i, layer in enumerate(self.attenuation_linears):
             layer_input = x # 保存当前层的输入，用于残差连接
+            
             x = F.relu(layer(x)) # 经过 线性层 和 ReLU 激活
+            
             # 如果当前层索引 i 在 skips 列表中，则进行残差连接；残差连接是元素级相加，要求维度相同。
             # 这里的 layer_input (W) 加上 x (W)，所以维度匹配。
             if i in self.skips:
                 x = x + layer_input # 残差连接：当前层的输出 + 当前层的输入
-            
-            # <--- 插入自注意力模块 (例如，在 MLP 运行到 D/2 层之后)
-            if self.use_self_attention and i == (self.D // 2 - 1 if self.D > 1 else 0):
-                # MultiheadAttention 输入需要 (batch_size, sequence_length, embed_dim)
-                # 当前 x 的形状是 (总点数, W)，其中 总点数 = original_batch_size * original_sequence_length
-
-                # 假设 `shape` 变量 (即 `embedded_pts.shape`) 是 (batch_size, num_points_per_sample, original_dim)
-                original_batch_size = shape[0]
-                original_sequence_length = shape[1] # 如果 pts 是 (B, N, D_orig)
-
-                # 1. 将 x 从 (总点数, W) 重塑为 (batch_size, sequence_length, W)
-                # 这允许 MultiheadAttention 在每个批次样本内部独立计算注意力
-                x_for_attn = x.view(original_batch_size, original_sequence_length, self.W)
-                
-                # 2. 进行自注意力计算
-                # 由于设置了 batch_first=True，所以输入是 (B, L, E)
-                attn_output, _ = self.self_attn(query=x_for_attn, key=x_for_attn, value=x_for_attn)
-                
-                # 3. 将注意力输出从 (batch_size, sequence_length, W) 展平回 (总点数, W)  以便继续 MLP 循环的后续线性层处理
-                attn_output_flat = attn_output.view(-1, self.W)
-                
-                # 4. 残差连接和层归一化
-                x = x + attn_output_flat # 残差连接
-                x = self.self_attn_norm(x) # 层归一化
-                
-                # 5. 前馈网络 (FFN) 部分
-                ffn_output_flat = self.self_attn_ffn(x)
-                x = x + ffn_output_flat # 残差连接
-                x = self.self_attn_ffn_norm(x) # 层归一化
 
         attn = self.attenuation_output(x) 
         feature = self.feature_layer(x)
